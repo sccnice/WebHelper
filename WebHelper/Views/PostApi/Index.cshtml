@@ -1,0 +1,1317 @@
+﻿
+@{
+    ViewData["Title"] = "接口测试";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script>
+    //jquery功能插件-scc
+    //自动下拉框
+    (function ($, window, document, undefined) {
+        var sets = {
+            jsonData: [],
+            titeText: '列表'
+            , iskeyup: false
+            , isclick: true
+            , clickfilter: true
+            , url: ""
+            , getData: {}
+            , oneLoad: false
+            , width: 0
+            , close: function () { }
+            , rowClick: function (row, box) { }
+        };
+        function makePage(box, options) {
+            this.options = $.extend({}, sets, options);
+            this.box = box;
+            console.log(this);
+            this.init();
+            ///列表生成
+            // sp.show();
+        }
+        makePage.prototype.init = function () {
+            var _this = this;
+            // var box = $(row);
+            _this.box.unbind("click");
+            _this.box.unbind("keyup");
+            if (_this.options.url && !_this.options.oneLoad) //远程模式
+            {
+                _this.box.removeData("oldvalue"); //移除旧值
+                var getData = _this.options.getData;
+                var TimeFn = null;
+                _this.box.on("keyup", function (e) {
+                    var width = _this.options.width == 0 ? _this.box.outerWidth() : _this.options.width;
+                    getData.searchValue = box.val(); //自动附加文本框的值
+                    var oldvalue = _this.box.data("oldvalue");
+                    if (oldvalue != _this.box.val()) { //新旧
+                        clearTimeout(TimeFn);
+                        TimeFn = setTimeout(function () {
+                            $.get(_this.options.url, getData, function (data) {
+                                _this.make(data, width);
+                            }, "json");
+                        }, 800);
+                        _this.box.data("oldvalue", _this.box.val());
+                    }
+                    else {
+                        _this.show();
+                    }
+                    e.stopPropagation();
+                });
+                if (_this.options.isclick) {
+                    _this.box.on("click", function (e) {  //单机无延时
+                        var width = _this.options.width == 0 ? _this.box.outerWidth() : _this.options.width;
+                        getData.searchValue = this.box.val(); //自动附加文本框的值
+                        var oldvalue = _this.box.data("oldvalue");
+                        if (oldvalue != _this.box.val()) { //新旧
+                            $.get(_this.options.url, getData, function (data) {
+                                _this.make(data, width);
+                            }, "json");
+                        }
+                        else {
+                            _this.show();
+                        }
+                        e.stopPropagation();
+                    });
+                }
+
+            }
+            else {
+                if (_this.options.url && _this.options.oneLoad) {
+                    $.ajax({
+                        dataType: "json",
+                        type: "GET",
+                        url: _this.options.url,
+                        data: _this.options.getData,// 你的formid
+                        async: false,
+                        success: function (data) {
+                            _this.options.jsonData = data;
+                        }
+                    });
+                }
+                //启用单机
+                if (_this.options.isclick) {
+                    _this.box.on("click", function (e) {
+                        var width = _this.options.width == 0 ? _this.box.outerWidth() : _this.options.width;
+                        var str = _this.box.val();
+                        var jsonData = [];
+                        if (_this.options.clickfilter) {
+                            $.each(_this.options.jsonData, function (i, row) {
+                                if (row.code.indexOf(str) > -1 || row.text.indexOf(str) > -1) {
+                                    jsonData.push(row);
+                                }
+                            });
+                            _this.make(jsonData, width);
+                        } else {
+                            if (!_this.sp) {
+                                _this.make(_this.options.jsonData, width);
+                            } else {
+                                _this.show();
+                            }
+                        }
+                        e.stopPropagation();
+                    });
+                }
+                //启用kedyup
+                if (_this.options.iskeyup) {
+                    _this.box.on("keyup", function (e) {
+                        var width = _this.options.width == 0 ? _this.box.outerWidth() : _this.options.width;
+                        var str = _this.box.val();
+                        var jsonData = [];
+                        $.each(_this.options.jsonData, function (i, row) {
+                            if (row.code.indexOf(str) > -1 || row.text.indexOf(str) > -1) {
+                                jsonData.push(row);
+                            }
+                        });
+                        _this.make(jsonData, width);
+                        e.stopPropagation();
+                    })
+                }
+            }
+        }
+        makePage.prototype.make = function (jsonStr, width) {
+            var _this = this;
+            $("div.select_div").hide();
+            //构建选择的页
+            var sp = _this.box.parent().find("div.select_div");
+            if (sp.length > 0) {
+                var p = sp.find(".select_panel");
+                p.empty()
+            }
+            else {
+                sp = $('<div></div>');
+                sp.addClass("select_div")
+                var f = $("<div class='select_form'><div class='select_title'>" + _this.options.titeText + "<span>关闭</span></div></div>");
+                f.css("width", width);  //文本框的宽
+                sp.append(f);
+                //绑定关闭
+                f.find(".select_title span").on("click", function () {
+                    sp.hide();
+                    sets.close();
+                })
+                //创建列表容器
+                var p = $("<div></div>"); p.addClass("select_panel");
+                f.append(p);
+                sp.appendTo(_this.box.parent());
+            }
+
+            //生成选择列表
+            var process_divs = [];
+            //-----循环开始
+            $.each(jsonStr, function (i, row) {
+                var code = "  "; //防止为空
+                if (row.code) {
+                    code = row.code;
+                }
+                if (!row.text) { row.text = "" }
+                var div = $('<div class="processline" data="' + row.id + '" cturn="' + i + '"><span class="ralign">' + code + '</span><span style="float:right;" class="ralign">' + row.text + '</span></div>');
+                div.on("click", function (e) {
+                    _this.options.rowClick.bind(_this.box[0])(row, _this.box);
+                    sp.hide();
+                }).on("mouseover", function () {
+                    $(this).css("background-color", "rgb(200, 227, 252)");
+                }).on("mouseout", function () {
+                    $(this).css("background-color", "#FFF");
+                });
+                process_divs.push(div[0]);
+            });
+            //----循环结束
+            p.append(process_divs);
+            var box_parent = _this.box.parent(); box_parent.css("position", "relative");
+            var top = _this.box.position().top + _this.box.outerHeight();
+            var left = _this.box.position().left;
+            sp.css("top", top + "px").css("left", left + "px");
+            //绑定事件
+            $(document).on("click", function () {
+                sp.hide();
+            });
+            sp.on("click", function (e) {
+                e.stopPropagation();
+            });
+            _this.sp = sp;
+            sp.show();
+        }
+        makePage.prototype.show = function () {
+            if (this.sp) {
+                $("div.select_div").hide();
+                this.sp.show();
+            }
+        }
+        makePage.prototype.hide = function () {
+            this.sp.hide();
+        }
+        $.fn.selectPage = function (options) {
+            if (typeof options == "string") {
+                if (options == "hide") {
+                    var mpfunc = $(this).data("selectPage");
+                    if (mpfunc) { mpfunc.hide(); }
+                } else if (options == 'show') {
+                    var mpfunc = $(this).data("selectPage");
+                    if (mpfunc) { mpfunc.show(); }
+                }
+                return $(this);
+            }
+
+            return $.each($(this), function (i, row) {
+                $(this).data("selectPage", new makePage($(row), options))
+            });
+        };
+    })(jQuery, window, document, undefined);
+    //显示隐藏加载
+    (function ($, undefined) {
+        $.fn.showLoad = function (options) {
+            var sets = {
+                dbclick: function () { }
+            };
+            var options = $.extend(sets, options);
+            $(this).css("position", "relative");
+            var d = $(this).children("div.shadowDiv");
+            if (d.length == 0) {
+                var d = $("<div class='shadowDiv' style='z-index: 2000;position: absolute; top: 0px;left: 0px;right: 0px; bottom: 0px; background-color: rgba(58, 54, 54, 0.03);'></div>");
+                var img = $("<img style=' position: absolute;left:50%;margin-top:-40px;margin-left:40px' src='/Scripts/img/loading.gif'>");
+                $(this).append(d);
+                var top_img = d.height() / 2;
+                var left_img = d.width() / 2;
+                //top_img = top_img > 30 ? top_img: top_img;
+                left_img = left_img > 30 ? left_img - 30 : left_img;
+                img.css("top", top_img + "px"); img.css("left", left_img + "px");
+                d.append(img);
+            }
+            else {
+                d.show(200);
+            }
+            d.on("dblclick", function () {
+                sets.dbclick();
+            });
+
+        }
+        $.fn.hideLoad = function () {
+            $(this).children("div.shadowDiv").hide(500);
+        }
+    })(jQuery);
+    (function ($, window, document, undefined) {
+        jQuery.bhtmes = {
+            loadstyle: {
+                selector: "",
+                $element: undefined,
+                $shadowDiv: undefined,
+            },
+            setContent: function (element) {
+                if (typeof element == "string") {
+                    this.loadstyle.selector = element;
+                } else {
+                    this.loadstyle.$element = element
+                }
+            },
+            showLoad: function () {
+                //  console.log(this.loadstyle.$element)
+                if (!this.loadstyle.$element) {
+                    this.loadstyle.$element = $(this.loadstyle.selector);
+                }
+                this.loadstyle.$element.css("position", "relative");
+                //  var d = $element.children("div.shadowDiv");
+                if (this.loadstyle.$shadowDiv) {
+                    this.loadstyle.$shadowDiv.show();
+                }
+                else {
+                    var d = $("<div class='shadowDiv' style='z-index: 2000;position: absolute; top: 0px;left: 0px;right: 0px; bottom: 0px; background-color: rgba(58, 54, 54, 0.03);'></div>");
+                    var img = $("<img style=' position: absolute;left:50%;margin-top:-40px;margin-left:40px' src='/Scripts/img/loading.gif'>");
+                    this.loadstyle.$element.append(d);
+                    var top_img = d.height() / 2;
+                    var left_img = d.width() / 2;
+                    //top_img = top_img > 30 ? top_img: top_img;
+                    left_img = left_img > 30 ? left_img - 30 : left_img;
+                    img.css("top", top_img + "px"); img.css("left", left_img + "px");
+                    d.append(img);
+                    this.loadstyle.$shadowDiv = d;
+
+                }
+
+            },
+            hideLoad: function () {
+                if (this.loadstyle.$shadowDiv) {
+                    this.loadstyle.$shadowDiv.fadeOut(300);
+                }
+            }
+        };
+    })(jQuery, window, document);
+    //showpage
+    (function ($, undefined) {
+        $.fn.showPage = function (option) {
+            return this.each(function () {
+                // var p = $(this).parent();
+                var workpage = $(this).siblings(".workpage");
+                // alert(11);
+                workpage.filter(".active").removeClass('active'); //移除选中
+                workpage.addClass('hide').hide();
+                $(this).addClass('active').removeClass('hide').show();
+            })
+        }
+    })(jQuery);
+    //formtojson fillform
+    (function ($, undefined) {
+        $.fn.tojson = function () {
+            var jData = {};
+            $(this).find("[name]").each(function () {
+                //处理单选
+                if ($(this).attr("type") == "radio") {
+                    if (this.checked) {
+                        var namestr = $(this).attr("name");
+                        jData[namestr] = $(this).val();
+                    }
+                    return true;
+                }
+                //处理多选
+                if ($(this).attr("type") == "checkbox") {
+                    if (this.checked) {
+                        var namestr = $(this).attr("name");
+                        if (jData[namestr]) {
+                            jData[namestr] = jData[namestr] + "," + $(this).val();
+                        } else {
+                            jData[namestr] = $(this).val();
+                        }
+                    }
+                    return true;
+                }
+                //其他
+                var namestr = $(this).attr("name");
+                var valstr = $(this).val();
+                jData[namestr] = valstr;
+            });
+            return jData;
+        }
+        $.fn.fillform = function (data) {
+            if (data) {
+                $(this).find("[name]").each(function () {
+                    var tagname = this.tagName;
+                    var colname = $(this).attr("name");
+                    if (!data[colname]) {
+                        return true;
+                    }
+                    //处理非表单
+                    if (tagname != "INPUT" && tagname != "SELECT" && tagname != "TEXTAREA") {
+
+                        if (data[colname]) {
+                            $(this).text(data[colname]);
+                        }
+                        return true;
+                    }
+                    //处理单选
+                    if ($(this).attr("type") == "radio") {
+                        if ($(this).val() == data[colname]) {
+                            this.checked = true;
+                        }
+                        return true;
+                    };
+                    //多选直接跳过
+                    if ($(this).attr("type") == "checkbox") {
+                        return true;
+                    }
+
+                    $(this).val(data[colname]);
+                });
+            }
+            return $(this);
+        }
+    })(jQuery);
+    //分页控件
+    (function ($, window, document, undefined) {
+        var defaults = {
+            pageCurrent: 1,
+            pageSize: 10,
+            pageCount: 1,
+            numCount: 0,
+            pageSizeArray: [10, 15, 20, 50, 100],
+            pageClick: function (n, s) { }
+        };
+        function Page(container, options) {
+            this.container = container;
+            this.options = $.extend({}, defaults, options);
+            this.options.pageCurrent = Math.min(this.options.pageCurrent, this.options.pageCount); //不能大于总页数
+            this.init();
+            //this.cureentPage = options.pageCurrent;
+            this.bindEvent();
+        }
+        Page.prototype.init = function () {
+            var _this = this;
+            this.container.empty(); //清空
+            var fanye = $('<div class="fanye"> <nav><ul class="pagination"></ul></nav></div>');
+            var ul = fanye.find("ul.pagination");
+            //显示行数 页数
+            var pagerows = $('<div class="fy-rows" style="margin-left:8px;color:#337ab7;float: left;margin-right:8px;margin-top:-15px"> '
+
+                + '<div class="form-group" style="margin-top:3px"></div> <label for="curpage mr5" style="margin-right:5px">显示行数</label>'
+                + '<select class="form-style page-pagesize" style="width:58px;height:33px;display: inline-block; background-image: none;border:1px solid #ddd"; color: #337ab7;></select></div>');
+
+            var sel = pagerows.find("select.page-pagesize");
+            for (var i = 0; i < this.options.pageSizeArray.length; i++) {
+                var pagesize = this.options.pageSizeArray[i];
+                var optionlabel = $('<option value="' + pagesize + '">' + pagesize + '</option>');
+                if (this.options.pageSize == pagesize) {
+                    optionlabel.attr("selected", "selected");
+                }
+                optionlabel.appendTo(sel);
+            }
+            this.sel = sel;
+            pagerows.appendTo(ul);
+            ul.append('<li><a href="#"><span aria-hidden="true">共' + this.options.pageCount + '页,' + this.options.numCount + '项</span></a></li>');
+
+            //首页 上一页
+            ul.append('<li class="li-first"><a href="#"><span aria-hidden="true" >&laquo; </span></a></li>');
+            ul.append('<li  class="li-pre"><a href="#"><span aria-hidden="true" >上一页</span></a></li>');
+            //中间页
+            var centerNum = Math.max(this.options.pageCurrent, 6);
+            centerNum = Math.min(centerNum, this.options.pageCount - 4);
+            var start = Math.max(1, centerNum - 5);
+            var end = Math.min(this.options.pageCount, centerNum + 4);
+            for (var i = start; i <= end; i++) {
+                var lipage = $('<li class="li-page" data-page="' + i + '"><a href="javascript:void(0)">' + i + '</a></li>');
+                if (i == this.options.pageCurrent) {
+                    lipage.addClass('active');
+                }
+                lipage.appendTo(ul);
+            }
+            //末页
+            ul.append('<li class="li-next"><a href="#"><span aria-hidden="true" >下一页</span></a></li>');
+            ul.append('<li class="li-last"><a href="#"<span aria-hidden="true" >&raquo </span></a></li>');
+            this.ul = ul;
+            fanye.appendTo(this.container);
+        }
+        Page.prototype.bindEvent = function () {
+            var _this = this;
+            var lipages = _this.ul.children("li.li-page");
+            lipages.on("click", function () {
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                var page = $(this).attr("data-page");
+                var pagesize = _this.sel.val();
+                if (page != pageCurrent) {
+                    _this.options.pageClick(page, pagesize);
+                    activepage.removeClass("active");
+                    $(this).addClass("active");
+                }
+            });
+            _this.ul.children("li.li-pre").on("click", function () {
+                var pagesize = _this.sel.val();
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                if (pageCurrent != 1) {
+                    var page = Math.max(1, pageCurrent - 1);
+                    _this.options.pageClick(page, pagesize);
+                    activepage.removeClass("active");
+                    var newpage = _this.ul.children("li[data-page='" + page + "']");
+                    if (newpage.length > 0) { newpage.addClass("active"); }
+                    else {
+                        var curOptions = _this.options; curOptions.pageCurrent = page;
+                        new Page(_this.container, curOptions);
+                    }
+                }
+            });
+            _this.ul.children("li.li-next").on("click", function () {
+                var pagesize = _this.sel.val();
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                if (pageCurrent != _this.options.pageCount) {
+                    var page = Math.min(_this.options.pageCount, pageCurrent + 1);
+                    _this.options.pageClick(page, pagesize);
+                    activepage.removeClass("active");
+                    var newpage = _this.ul.children("li[data-page='" + page + "']");
+                    if (newpage.length > 0) { newpage.addClass("active"); }
+                    else {
+                        var curOptions = _this.options; curOptions.pageCurrent = page;
+                        new Page(_this.container, curOptions);
+                    }
+                }
+            });
+            _this.ul.children("li.li-first").on("click", function () {
+                var pagesize = _this.sel.val();
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                if (pageCurrent != 1) {
+                    _this.options.pageClick(1, pagesize);
+                    activepage.removeClass("active");
+                    var newpage = _this.ul.children("li[data-page='1']");
+                    if (newpage.length > 0) { newpage.addClass("active"); }
+                    else {
+                        var curOptions = _this.options; curOptions.pageCurrent = 1;
+                        new Page(_this.container, curOptions);
+                    }
+                }
+            });
+            _this.ul.children("li.li-last").on("click", function () {
+                var pagesize = _this.sel.val();
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                if (pageCurrent != _this.options.pageCount) {
+                    _this.options.pageClick(_this.options.pageCount, pagesize);
+                    activepage.removeClass("active");
+                    var newpage = _this.ul.children("li[data-page='" + _this.options.pageCount + "']");
+                    if (newpage.length > 0) { newpage.addClass("active"); }
+                    else {  //重新绘制
+                        var curOptions = _this.options; curOptions.pageCurrent = _this.options.pageCount;
+                        new Page(_this.container, curOptions);
+                    }
+                }
+            });
+            this.sel.on("change", function () {
+                var activepage = lipages.filter("li.active");
+                var pageCurrent = parseInt(activepage.attr("data-page"));
+                _this.options.pageClick(pageCurrent, $(this).val());
+            });
+        }
+        Page.prototype.getPageCurrent = function (pagecurrent) {
+            if (pagecurrent) {
+                return pagecurrent;
+            }
+            var _this = this; var lipages = _this.ul.children("li.li-page");
+            var activepage = lipages.filter("li.active");
+            var pageCurrent = parseInt(activepage.attr("data-page"));
+            if (isNaN(pageCurrent)) {
+                pageCurrent = 1;
+            }
+            return pageCurrent;
+        }
+        Page.prototype.getPageSize = function (pagesize) {
+            if (pagesize) {
+                return pagesize;
+            }
+            var _this = this;
+            var pageSize = parseInt(this.sel.val());
+            if (isNaN(pageSize)) {
+                pageSize = 20;
+            }
+            return parseInt(pageSize);
+
+        }
+        $.fn.createPage = function (options) {
+            return this.each(function () {
+                var _this = $(this);
+                var page = new Page(_this, options);
+                _this.data("datapage", page);
+            });
+        }
+        $.fn.getPage = function () {
+            var page = $(this).data("datapage");
+            if (page) {
+                return $(this).data("datapage");
+            } else {
+                function TempPage() {
+                    this.getPageSize = function (pagesize) {
+                        if (pagesize) {
+                            return pagesize;
+                        } else {
+                            return 20;
+                        }
+                    };
+                    this.getPageCurrent = function (pagecurrent) {
+                        if (pagecurrent) {
+                            return pagecurrent;
+                        } else {
+                            return 1;
+                        }
+                    };
+                }
+                return new TempPage();
+            }
+        }
+    })(jQuery, window, document, undefined);
+
+
+</script>
+<style>
+     /*selectPage*/
+      .select_div {
+          display: none;
+          z-index: 1100;
+          position:absolute;
+          top: 51px;
+          left: 680px;
+          text-align: left;
+    line-height: 1.42857143 !important;
+      }
+      .select_form {
+          BORDER-RIGHT: #7f9db9 1px solid;
+          PADDING-RIGHT: 2px;
+          BORDER-TOP: #7f9db9 1px solid;
+          DISPLAY: none;
+          PADDING-LEFT: 2px;
+          LEFT: 0;
+          PADDING-BOTTOM: 2px;
+          BORDER-LEFT: #7f9db9 1px solid;
+          WIDTH: 100px;
+          PADDING-TOP: 2px;
+          BORDER-BOTTOM: #7f9db9 1px solid;
+          FONT-FAMILY: Arial;
+          POSITION: absolute;
+          TOP: 55px;
+          BACKGROUND-COLOR: #fff;
+          height: 300px;
+          overflow: auto;
+          left: 0px;
+          top: 2px;
+          /*width: 320px;*/
+          display: block;
+      }
+      .select_title {
+          PADDING-RIGHT: 2px;
+          PADDING-LEFT: 2px;
+          PADDING-BOTTOM: 2px;
+          COLOR: #666;
+          PADDING-TOP: 2px;
+          BORDER-BOTTOM: gray 1px dashed;
+      }
+      .select_panel {
+          COLOR: #05a;
+          FONT-FAMILY: Arial;
+          font-size: 13px;
+          /*HEIGHT: 181px;*/
+      }
+      .select_title > span {
+          float: right;
+          cursor: pointer;
+          color: #0066B3;
+      }
+      select_panel div {
+          PADDING-RIGHT: 2px;
+          PADDING-LEFT: 2px;
+          PADDING-BOTTOM: 2px;
+          MARGIN: 1px 0;
+          CURSOR: pointer;
+          PADDING-TOP: 2px;
+          BACKGROUND-COLOR: #fff;
+      }
+ .select_div .processline{
+cursor: pointer;
+height: 22px;
+}
+
+/* 状态样式pull*/
+  .pull {
+            /*background: #EFEFEF;*/
+            width: 100%;
+            height: 47px;
+            padding: 10px 0;
+            border-bottom: 1px solid #d7d7d7;
+            position: relative;
+            top: 0;
+            right: 0;
+            z-index: 1002;
+        }
+
+            .pull .pull-left {
+                position: absolute;
+                top: 9px;
+                left: inherit;
+                z-index: 104;
+                /*left:15px;*/
+            }
+
+        .pull-left {
+            float: left;
+        }
+
+        .pull .pull-padding {
+            padding: 0 375px;
+        }
+
+        .pull .pull-center {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            z-index: 103;
+            width: 100%;
+            box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            -ms-box-sizing: border-box;
+            -o-box-sizing: border-box;
+            text-align: center;
+        }
+
+        .pull .pull-nav {
+            white-space: nowrap;
+            width: 262px;
+            display: inline-block;
+        }
+
+        .pull .pull-right {
+            position: absolute;
+            top: 8px;
+            right: 0px;
+            z-index: 104;
+        }
+        .row > .pull .pull-right {
+          right: 15px;
+            }
+        .row > .pull .pull-left {
+            left: 15px;
+        }
+        .pull-right {
+            float: right;
+        }
+        .pull .jgui-radio-button-wrapper {
+            padding: 0 12px;
+            height: 28px;
+            line-height: 26px;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+         /*状态样式*/
+        .jgui-radio-group {
+            display: inline-block;
+            font-size: 12px;
+        }
+
+        .jgui-radio-button-wrapper {
+            /*margin: -2px;*/
+            margin-left: -2px;
+            margin-right: -2px;
+            height: 28px;
+            line-height: 26px;
+            color: #666;
+            display: inline-block;
+            transition: all .3s ease;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-left: 0;
+            background: #fff;
+            padding: 0 16px;
+        }
+            .jgui-radio-button-wrapper:first-child{
+                border-left: 1px solid #ccc;
+            }
+        .jgui-radio-button-wrapper-checked:first-child {
+            border-color: #6d6f73;
+            box-shadow: none !important;
+        }
+
+        .jgui-radio-button-wrapper-checked {
+            background: #6d6f73;
+            border-color: #6d6f73;
+            color: #fff;
+            box-shadow: -1px 0 0 0 #6d6f73;
+        }
+
+        .jgui-radio-button-wrapper .jgui-radio-inner, .jgui-radio-button-wrapper input {
+            opacity: 0;
+            filter: alpha(opacity=0);
+            width: 0;
+            height: 0;
+        }
+        .jgui-radio-button-wrapper > .jgui-radio-button {
+            margin-left: 0;
+            display: block;
+            width: 0;
+            height: 0;
+        }
+.modal .pull {
+background-color:transparent;
+}
+         /*书签样式*/
+        .panel>.panel-heading{
+	text-align: left;
+}
+      .panel .pull{
+           background-color:transparent;
+                border-bottom:none;
+                                 }
+        .panel .pull > .pull-right {
+        right:6px;
+        }
+          .panel .pull > .pull-left {
+        /*left:6px;*/
+        }
+       /*table-edit*/
+         tr.editrow input.celledit[type='text'], tr.editrow select {
+            display: block;
+            width: 100%;
+            height: 28px;
+            padding: 6px 8px;
+            font-size: 14px;
+            line-height: 1.42857143;
+            color: #555;
+            background-color: #fff;
+            background-image: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+            box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+            -webkit-transition: border-color ease-in-out .15s, -webkit-box-shadow ease-in-out .15s;
+            -o-transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+            transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+        }
+
+        tr.editrow input.editcell[type='checkbox'] {
+            cursor: pointer;
+            background: #FFFFFF;
+            width: 16px;
+            height: 16px;
+        }
+
+        td.editing input.editcell[type='checkbox'] {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        tr.editrow > td.editing {
+            line-height: 1.428571 !important;
+            /*padding:0 8px 0 8px !important;*/
+        }
+
+        tr.editrow > td > div[data-field] {
+            width: 100%;
+            height: 100%;
+        }
+        /**搜索框样式*/
+        .search-left {
+            display: inline-block;
+            /*border: 1px solid #d8cdcd;*/
+            width: 280px;
+        }
+
+        .search-txt {
+            border: 1px solid #d8cdcd;
+            display: block;
+            width: 220px;
+            height: 31px;
+            padding: 2px 10px;
+            font-size: 14px;
+            line-height: 1.42857143;
+            color: #000;
+            border-radius: 2px;
+            padding-right: 32px;
+            /*width: 186px;
+        border: none;*/
+        }
+
+        .bg-ee {
+            border: 1px solid #d8cdcd;
+            /*border-right: none;*/
+            border-left: none;
+            background: #EEEEEE;
+            left: -34px;
+            height: 31px;
+            border-radius: 0px;
+            position: relative;
+            top: 0px;
+        }
+
+            .bg-ee:focus {
+                outline: 0 !important;
+            }
+
+.Bookmarks .control-label {
+font-size:12px;
+}
+table .checkbox {
+        margin-top: auto;
+   margin-bottom: auto;
+}
+.well {
+text-align:left;
+}
+
+.pull .form-control {
+height:31px
+}
+/*面板*/
+ .content .panel-default > .panel-heading {
+    color: #333;
+    background-color: #FFFFFF;
+    border-color: #ddd;
+}
+.content .panel-default > .panel-heading {
+    color: #4BA1D2;
+}
+.panel-default > .panel-heading >span.glyphicon{
+    color: #4BA1D2;
+}
+.content .panel-default{
+min-height:460px
+}
+.content .panel-default {
+    margin-top:12px
+}
+/*xll新增投产详情左侧开始*/
+ .content .panel-default1 > .panel-heading {
+    color: #333;
+    background-color: #FFFFFF;
+    border-color: #ddd;
+}
+.content .panel-default1 > .panel-heading {
+    color: #4BA1D2;
+}
+.panel-default1 > .panel-heading >span.glyphicon{
+    color: #4BA1D2;
+}
+.content .panel-default1{
+min-height:548px
+}
+.content .panel-default1 {
+    margin-top:12px
+}
+/*xll新增结束*/
+.panel .table-bordered {
+border-bottom:1px solid #ddd;
+border-top:1px solid #ddd;
+}
+.panel >.pull {
+margin-top:15px;
+}
+/*模态框*/
+.modal-backdrop.in {
+    filter: alpha(opacity=50);
+    opacity: 0.1;
+}
+.modal-dialog {
+    margin: 75px auto;
+}
+.modal-header {
+    background-color: #FFF;
+        border-bottom: 2px solid #e5e5e5;
+            color: #666;
+}
+.modal-footer {
+    border-top: 2px solid #e5e5e5;
+}
+.modal-content {
+background-color: #FFFFFF;
+}
+/*按钮*/
+.btn-primary {
+    color: #fff;
+    background-color: #288fd1;
+    border-color: #288fd1;
+}
+
+.btn-sm {
+   opacity: 0.7;
+    border: none;
+}
+.btn-default {
+   border: none;
+   border: 1px solid #ccc;
+}
+.center-block {
+
+text-align:center;
+}
+/*多行文本*/
+textarea.form-style {
+    height: auto;
+}
+/*表格 style*/
+.table-bordered {
+    border: 1px solid #f2f2f2;
+}
+.table> thead {
+    background-color: #FaFaFa;
+}
+.font-min {
+font-size:12px;
+}
+.table > thead > tr > th {
+    vertical-align: bottom;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+/* 表单*/
+    .form-horizontal .control-text {
+        padding-top: 4px;
+        margin-bottom: 0;
+        text-align: left;
+    }
+.input-sm {
+font-size:14px;
+}
+/*
+
+    test tab
+*/
+a:hover,a:focus{
+    outline: none;
+    text-decoration: none;
+}
+.tab .nav-tabs{
+    padding-left: 15px;
+    border-bottom: 4px solid #4BA1D2;
+}
+.tab .nav-tabs li a{
+    color: #fff;
+    padding: 10px 20px;
+    margin-right: 10px;
+    background: #4BA1D2;
+    text-shadow: 1px 1px 2px #000;
+    border: none;
+    border-radius: 0;
+    opacity: 0.5;
+    position: relative;
+    transition: all 0.3s ease 0s;
+}
+.tab .nav-tabs li a:hover{
+    background: #4BA1D2;
+    opacity: 0.8;
+}
+.tab .nav-tabs li.active a{
+    opacity: 1;
+}
+.tab .nav-tabs li.active a,
+.tab .nav-tabs li.active a:hover,
+.tab .nav-tabs li.active a:focus{
+    color: #fff;
+    background: #4BA1D2;
+    border: none;
+    border-radius: 0;
+}
+.tab .nav-tabs li a:before,
+.tab .nav-tabs li a:after{
+    content: "";
+    border-top: 42px solid transparent;
+    position: absolute;
+    top: -2px;
+}
+.tab .nav-tabs li a:before{
+    border-right: 15px solid #4BA1D2;
+    left: -15px;
+}
+.tab .nav-tabs li a:after{
+    border-left: 15px solid #4BA1D2;
+    right: -15px;
+}
+.tab .nav-tabs li a i,
+.tab .nav-tabs li.active a i{
+    display: inline-block;
+    padding-right: 5px;
+    font-size: 15px;
+    text-shadow: none;
+}
+.tab .nav-tabs li a span{
+    display: inline-block;
+    font-size: 14px;
+    letter-spacing: -9px;
+    opacity: 0;
+    transition: all 0.3s ease 0s;
+}
+.tab .nav-tabs li a:hover span,
+.tab .nav-tabs li.active a span{
+    letter-spacing: 1px;
+    opacity: 1;
+    transition: all 0.3s ease 0s;
+}
+.tab .tab-content{
+    /*padding: 30px;*/
+    background: #fff;
+    /*font-size: 16px;*/
+    color: #6c6c6c;
+    line-height: 25px;
+}
+.tab .tab-content h3{
+    /*font-size: 24px;*/
+    margin-top: 0;
+}
+@@media only screen and (max-width: 479px){
+    .tab .nav-tabs li{
+        width: 100%;
+        margin-bottom: 5px;
+        text-align: center;
+    }
+    .tab .nav-tabs li a span{
+        letter-spacing: 1px;
+        opacity: 1;
+    }
+}
+
+</style>
+<div class="row">
+    <div class="col-xs-6">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <span class="panel-text">测试</span>
+            </div>
+            <div class="panel-body">
+                <form class="form-inline">
+                    <div class="form-group">
+                        <div class="form-group">
+                            <select type="text" class="form-control" id="txt_submitType">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                            </select>
+                        </div>
+                        <input type="text" class="form-control" id="txt_controller" placeholder="controller">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="txt_action" placeholder="action">
+                    </div>
+                    <button type="button" id="btn_send" class="btn btn-default ">提交</button>
+                </form>
+                <table class="table table-bordered " id="table_param" style="margin-top:20px">
+                    <thead>
+                        <tr>
+                            <th>参数Key</th>
+                            <th>Value</th>
+                            <th>删除</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" class="form-control txt-key"></td>
+                            <td><input type="text" class="form-control txt-value"></td>
+                            <td>
+                                <a href="javascript:void(0)" class="a-remove">
+                                    <span class="glyphicon glyphicon-remove" style="color:#808080" aria-hidden="true"></span>
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="text" class="form-control txt-key"></td>
+                            <td><input type="text" class="form-control txt-value"></td>
+                            <td>
+                                <a href="javascript:void(0)" class="a-remove">
+                                    <span class="glyphicon glyphicon-remove" style="color:#808080" aria-hidden="true"></span>
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="text" class="form-control txt-key"></td>
+                            <td>
+                                <input type="text" class="form-control txt-value">
+
+                            </td>
+                            <td>
+                                <a href="javascript:void(0)" class="a-remove">
+                                    <span class="glyphicon glyphicon-remove" style="color:#808080" aria-hidden="true"></span>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+
+                </table>
+                <div><a class="pull-right" id="a_addtr" href="javascript:void(0)">添加</a></div>
+
+            </div>
+        </div>
+    </div>
+    <div class="col-xs-6">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <span class="panel-text">结果</span>
+            </div>
+            <div class="panel-body">
+                <form class="form-horizontal">
+                    <div class="form-group">
+                        <div class="col-xs-12">
+                            <textarea class="form-control" id="txt_result" rows="18"></textarea>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function isEmptyObject(obj) {
+        　　for (var key in obj) {
+            　　　　return false;//返回false，不为空对象
+        　　}
+        　　return true;//返回true，为空对象
+    }
+
+    window.onload = function () { 
+        table_param = $("#table_param");
+        var bindDel = function ($del) {
+            $del.on("click", function () {
+                $(this).parents('tr').remove();
+            });
+        }
+        var trstr = '<tr><td><input type="text" class="form-control txt-key" ></td><td><input type="text" class="form-control txt-value" ></td>  <td>'
+            + ' <a href="javascript:void(0)" class="a-remove"> <span class="glyphicon glyphicon-remove" style="color:#808080" aria-hidden="true"></span> </a></td></tr>';
+        $("#a_addtr").on("click", function () {
+            var newtr = $(trstr);
+            table_param.find("tbody").append(newtr);
+            bindDel(newtr.find("a.a-remove"));
+        });
+        bindDel(table_param.find("a.a-remove"));
+        //缓存
+        var cacheUrl = function (url, submit_Data, submit_Type) {
+            if(url){
+                var url_arr = url.split("/");
+                var route = JSON.parse(localStorage.getItem("route"));
+                var c = url_arr[1];
+                var a = url_arr[2];
+                //不存在则生成
+                if (!route) {
+                    route = {};
+                }
+                if (!route[c]) {
+                    route[c] = {};
+                }
+                route[c][a] = { submitData:submit_Data,submitType:submit_Type};
+                localStorage.setItem("route", JSON.stringify(route));
+            }
+        };
+       // table_param = $("#table_param");
+        //发送
+        $("#btn_send").on("click", function () {
+            var submitType = $("#txt_submitType").val();
+            var submitUrl = "api/" + $("#txt_controller").val() + "/" + $("#txt_action").val();
+            var submitData = {};
+            table_param.find("tbody tr").each(function () {
+                var tr = $(this);
+                var key = tr.find("input.txt-key").val();
+                if (key) {
+                    submitData[key] = tr.find("input.txt-value").val();
+                }
+            });
+            if (isEmptyObject(submitData)) { 
+                table_param.find("tbody tr").each(function () { 
+                    var tr = $(this);
+                    submitData = tr.find("input.txt-value").val();
+                    return false;
+                });
+            }
+
+            console.log(submitData);
+            console.log(submitUrl);
+            $.ajax({
+                type: submitType,
+                url: "/PostApi/Post",
+                data: { posturl: submitUrl, postData: typeof submitData == "object" ? JSON.stringify(submitData) : submitData }
+                , success: function (data) {
+                    var str="";
+                    if (typeof data == 'object') {
+                        str = JSON.stringify(data,null,2);
+                    } else {
+                        try {
+                            str = JSON.stringify(JSON.parse(data), null, 2);
+                        } catch(ex){
+                            str = data;
+                        }
+                    }
+                    $("#txt_result").val(str);
+                    cacheUrl(submitUrl, submitData, submitType);
+                }
+            });
+
+        });
+        //级联绑定
+        var actionBind=function(c,route){
+            var actionData = [];
+            var arr = route[c];
+            $.each(arr, function (action, param) {
+                var action_r = {};
+                action_r.id = "";
+                action_r.code = "";
+                action_r.param = param;
+                action_r.text = action;
+                actionData.push(action_r);
+            });
+            $("#txt_action").selectPage({
+                jsonData: actionData, iskeyup: true
+                , rowClick: function (row1, box1) {
+                    box1.val(row1.text);
+                    var trs = table_param.find("tbody tr");
+                    var i = 0;
+                    $('#txt_submitType').val(row1.param.submitType);//提交方式
+                    if(row1.param.submitData){
+                        $.each(row1.param.submitData, function (key, value) {
+                        if (i >= trs.length) { //超过了
+                            var newtr = $(trstr);
+                            table_param.find("tbody").append(newtr); bindDel(newtr.find("a.a-remove"));
+                            newtr.find("input.txt-key").val(key);
+                            newtr.find("input.txt-value").val(value);
+                        } else {
+                            tr = $(trs[i]);
+                            tr.find("input.txt-key").val(key);
+                            tr.find("input.txt-value").val(value);
+                        }
+                        i = i + 1;
+                    });
+                    }
+                }
+            });
+        }
+        //绑定
+        var route = JSON.parse(localStorage.getItem("route"));
+        if (route) {
+            var data = [];
+            $.each(route, function (key, value) {
+                var r = {};
+                r.id = "";
+                r.code = "";
+                r.text = key;
+                data.push(r);
+            });
+            $("#txt_controller").selectPage({
+            jsonData: data,
+            iskeyup: true
+        , rowClick: function (row, box) {
+            var c = row.text.trim();
+            box.val(c);
+            //级联绑定
+            actionBind(c, route);
+        }
+        });
+        }
+    }
+</script>

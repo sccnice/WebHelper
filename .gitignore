@@ -1,0 +1,9 @@
+﻿################################################################################
+# 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
+################################################################################
+
+/WebHelper/bin
+/WebHelper/obj
+/packages/System.Threading.Tasks.Extensions.4.3.0
+/Data2Model/obj
+/Data2Model/bin

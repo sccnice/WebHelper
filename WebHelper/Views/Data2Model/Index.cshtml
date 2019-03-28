@@ -1,0 +1,167 @@
+﻿
+@{
+    ViewData["Title"] = "code";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row">
+
+
+    <div class="col-xs-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <span class="panel-text">选择</span>
+            </div>
+            <div class="panel-body">
+                <form class="form-inline">
+                    <div class="form-group">
+                        <select type="text" class="form-control" onchange="SelectSchema()" id="txt_Schema"></select>
+                    </div>
+                    <div class="form-group">
+                        <select type="text" class="form-control" onchange="$('#txt_setTableName').val(this.value)" id="txt_Table"></select>
+                    </div>
+                    <button type="button" id="btn_send" class="btn btn-default ">提交（标准）</button>
+                    <button type="button" id="btn_send2" class="btn btn-default ">提交（前台）</button>
+                </form>
+ 
+
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-xs-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <span class="panel-text">结果</span>
+                                                                                  <span id="btn_copy" style="cursor: pointer;" class="pull-right label label-info">复制</span>
+            </div>
+            <div class="panel-body">
+                <form class="form-inline">
+                    <div class="form-group">
+                        <label>设置表名:</label> <input style="width:400px" class="form-control" id="txt_setTableName" value="">
+                    </div>
+                </form>
+                <form class="form-horizontal" style="margin-top:5px">
+                    <div class="form-group">
+                        <div class="col-xs-12">
+                            <textarea class="form-control" id="txt_result" rows="24"></textarea>
+                            @*<pre id="txt_result"></pre>*@
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+    <script>
+        function SelectSchema() {
+            var $schema = $('#txt_Schema');
+            var $table = $('#txt_Table');
+            $table.empty();
+            $.ajax({
+                type: "get",
+                url: "/Data2Model/GetDataTables",
+                data: { SchemaName: $schema.val() }
+                , success: function (result) {
+                    if (result.ResultState) {
+                        var stroption = "";
+                        for (var i = 0; i < result.Data.length; i++) {
+                            var item = result.Data[i];
+                            stroption = stroption + "<option value=" + item.TableName + ">" + item.TableName + "</option>";
+                        }
+                        $table.append(stroption);
+                    }
+                }
+            });
+
+
+
+        }
+        $(function () {
+            //加载架构
+            $.ajax({
+                type: "get",
+                url: "/Data2Model/GetDataSchema",
+                data: {}
+                , success: function (result) {
+                    if (result.ResultState) {
+                        var stroption = "";
+                        for (var i = 0; i < result.Data.length; i++) {
+                            var item = result.Data[i];
+                            stroption = stroption + "<option value=" + item.SchemaName + ">" + item.SchemaName + "</option>";
+                        }
+                        $('#txt_Schema').append(stroption);
+                        LocationTable(true);
+                        SelectSchema();
+                    }
+                }
+            });
+
+            var LocationTable = function (isLoad) { 
+                var $schema = $('#txt_Schema');
+                var $table = $('#txt_Table');
+
+                //加载时执行
+                if (isLoad) {
+                    var schemaname = localStorage.getItem("Schema");
+                    var tablename = localStorage.getItem("Table");
+                    if (schemaname) { $schema.val(schemaname); }
+                    if (tablename) { $table.val(tablename); }
+                } else {
+                localStorage.setItem("Schema", $schema.val());
+                localStorage.setItem("Table", $table.val());
+                }
+            }
+            //tijiao
+            $('#btn_send').on('click', function () { 
+
+                var $schema = $('#txt_Schema');
+                var $table = $('#txt_Table');
+                
+                $.ajax({
+                    type: "get",
+                    url: "/Data2Model/CodeView",
+                    data: { SchemaName: $schema.val(), TableName: $table.val(), SetTableName: $("#txt_setTableName").val()  }
+                    , success: function (result) {
+                        if (result.ResultState) {
+                            $('#txt_result').val(result.Data);
+                        }
+                    }
+                });
+
+
+                LocationTable(false);
+            });
+            //tijiao2
+            $('#btn_send2').on('click', function () {
+
+                var $schema = $('#txt_Schema');
+                var $table = $('#txt_Table');
+
+                $.ajax({
+                    type: "get",
+                    url: "/Data2Model/CodeViewWeb",
+                    data: { SchemaName: $schema.val(), TableName: $table.val(), SetTableName: $("#txt_setTableName").val() }
+                    , success: function (result) {
+                        if (result.ResultState) {
+                            $('#txt_result').val(result.Data);
+                        }
+                    }
+                });
+
+
+                LocationTable(false);
+            });
+
+            $('#btn_copy').on('click', function () { 
+                var Url2 = document.getElementById("txt_result");
+                Url2.select();
+               var r= document.execCommand("Copy"); // 执行浏览器复制命令
+               if (r) { alert("复制成功"); }
+            });
+
+        });
+
+    </script>
